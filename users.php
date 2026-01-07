@@ -334,6 +334,7 @@
         </div>
 
         <div class="map-container" id="mapContainer">
+            <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()">⛶</button>
             <div class="map-wrapper" id="mapWrapper">
                 <img src="" alt="Map" class="map-image" id="mapImage">
             </div>
@@ -365,7 +366,17 @@
         const mapContainer = document.getElementById('mapContainer');
         const mapWrapper = document.getElementById('mapWrapper');
         const mapImage = document.getElementById('mapImage');
-
+        function toggleFullscreen() {
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+            
+            if (!mapContainer.classList.contains('fullscreen')) {
+                mapContainer.classList.add('fullscreen');
+                fullscreenBtn.textContent = '✕';
+            } else {
+                mapContainer.classList.remove('fullscreen');
+                fullscreenBtn.textContent = '⛶';
+            }
+        }
         // Load map and points
         async function loadMap() {
             try {
@@ -467,9 +478,15 @@
 
         function resetView() {
             scale = 1;
-            translateX = 0;
-            translateY = 0;
+            centerMap();
             updateTransform();
+        }
+        function centerMap() {
+            const containerRect = mapContainer.getBoundingClientRect();
+            const imageRect = mapImage.getBoundingClientRect();
+            
+            translateX = (containerRect.width - imageRect.width) / 2;
+            translateY = (containerRect.height - imageRect.height) / 2;
         }
 
         // Dragging functionality

@@ -14,7 +14,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(135deg, green 0%, blue 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -29,7 +29,7 @@
         }
 
         .header {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(135deg, green 0%, blue 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -94,12 +94,12 @@
         }
 
         .btn-primary {
-            background: #f093fb;
+            background: green;
             color: white;
         }
 
         .btn-primary:hover {
-            background: #e082ea;
+            background: green;
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
         }
@@ -215,6 +215,146 @@
             }
         }
 
+        /* Info Popup Styles */
+        .popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            z-index: 1001;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: popupIn 0.3s ease-out;
+        }
+
+        @keyframes popupIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        .popup.active {
+            display: block;
+        }
+
+        .popup-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+        }
+
+        .popup-overlay.active {
+            display: block;
+        }
+
+        .popup-header {
+            background: linear-gradient(135deg, green 0%, blue 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 16px 16px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .popup-header h3 {
+            font-size: 1.5em;
+            margin: 0;
+        }
+
+        .close-popup {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 24px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .close-popup:hover {
+            background: rgba(255,255,255,0.3);
+            transform: rotate(90deg);
+        }
+
+        .popup-body {
+            padding: 25px;
+        }
+
+        .popup-image {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .popup-description {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            font-size: 15px;
+        }
+
+        .popup-link {
+            display: inline-block;
+            padding: 12px 24px;
+            background: blue;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        .popup-link:hover {
+            background: blue;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
+        }
+
+        .popup-edit-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: green;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .popup-edit-btn:hover {
+            background: green;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+        }
+
+        /* Edit Modal Styles */
         .modal {
             display: none;
             position: fixed;
@@ -224,7 +364,7 @@
             background: white;
             border-radius: 16px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-            z-index: 1000;
+            z-index: 1002;
             max-width: 600px;
             width: 90%;
             max-height: 90vh;
@@ -255,7 +395,7 @@
             width: 100%;
             height: 100%;
             background: rgba(0,0,0,0.6);
-            z-index: 999;
+            z-index: 1001;
         }
 
         .modal-overlay.active {
@@ -263,7 +403,7 @@
         }
 
         .modal-header {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(135deg, green 0%, blue 100%);
             color: white;
             padding: 20px;
             border-radius: 16px 16px 0 0;
@@ -325,7 +465,7 @@
         .form-group input:focus,
         .form-group textarea:focus {
             outline: none;
-            border-color: #f093fb;
+            border-color: black;
         }
 
         .form-group textarea {
@@ -400,7 +540,7 @@
     <div class="container">
         <div class="header">
             <h1>⚙️ Admin Panel - Interactive Map</h1>
-            <p>Upload map, add and manage points</p>
+            <p>Upload map, add and manage points | Double-click points to view details</p>
         </div>
 
         <div class="controls">
@@ -436,7 +576,7 @@
         </div>
     </div>
 
-    <!-- Point Info Popup -->
+    <!-- Info Popup (View Mode) -->
     <div class="popup-overlay" id="popupOverlay" onclick="closePopup()"></div>
     <div class="popup" id="popup">
         <div class="popup-header">
@@ -447,11 +587,11 @@
             <img src="" alt="" class="popup-image" id="popupImage" style="display: none;">
             <div class="popup-description" id="popupDescription"></div>
             <a href="#" class="popup-link" id="popupLink" target="_blank" style="display: none;">Visit Link</a>
-            <button class="popup-edit-btn" id="popupEditBtn" onclick="editFromPopup()">Edit Point</button>
+            <button class="popup-edit-btn" onclick="editFromPopup()">✏️ Edit Point</button>
         </div>
     </div>
 
-    <!-- Point Form Modal -->
+    <!-- Edit Modal (Edit Mode) -->
     <div class="modal-overlay" id="modalOverlay" onclick="closeModal()"></div>
     <div class="modal" id="pointModal">
         <div class="modal-header">
@@ -512,6 +652,8 @@
         let dragStartX, dragStartY;
         let dragMoved = false;
         let currentEditingPoint = null;
+        let clickTimer = null;
+        let preventClick = false;
 
         const mapContainer = document.getElementById('mapContainer');
         const mapWrapper = document.getElementById('mapWrapper');
@@ -579,10 +721,11 @@
                     }
                 });
                 
-                // Click to view (only if not dragged)
-                pointEl.addEventListener('click', (e) => {
-                    if (!isAddingPoint && !dragMoved) {
+                // Double-click to view popup
+                pointEl.addEventListener('dblclick', (e) => {
+                    if (!isAddingPoint) {
                         e.stopPropagation();
+                        preventClick = true;
                         showPopup(point);
                     }
                 });
@@ -693,13 +836,10 @@
 
         function editFromPopup() {
             if (currentEditingPoint) {
+                const point = currentEditingPoint;
                 closePopup();
-                editPoint(currentEditingPoint);
+                openPointForm(point.x_coordinate, point.y_coordinate, point);
             }
-        }
-
-        function editPoint(point) {
-            openPointForm(point.x_coordinate, point.y_coordinate, point);
         }
 
         function closeModal() {
@@ -839,6 +979,7 @@
                     
                     try {
                         await fetch('database.php', { method: 'POST', body: formData });
+                        showNotification('Point position updated', 'success');
                         loadPoints();
                     } catch (error) {
                         console.error('Error updating point position:', error);
