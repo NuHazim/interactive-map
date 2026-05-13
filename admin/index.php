@@ -1,1105 +1,239 @@
-<?php include '../database.php'; ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Heritage Garden Map</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background:linear-gradient(135deg, green 0%, blue 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1600px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
-        }
-
-        .header {
-            background: linear-gradient(135deg, green 0%, blue 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
-
-        .controls {
-            background: #f8f9fa;
-            padding: 20px;
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            flex-wrap: wrap;
-            border-bottom: 2px solid #e9ecef;
-        }
-
-        .map-container.fullscreen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 9999;
-            border-radius: 0;
-        }
-
-        .fullscreen-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 100;
-            background: rgba(255, 255, 255, 0.9);
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            transition: all 0.3s;
-        }
-
-        .fullscreen-btn:hover {
-            background: white;
-            transform: scale(1.1);
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-primary {
-            background: green;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: green;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
-        }
-
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: #218838;
-            transform: translateY(-2px);
-        }
-
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #c82333;
-            transform: translateY(-2px);
-        }
-
-        .zoom-info {
-            margin-left: auto;
-            color: #666;
-            font-weight: 600;
-        }
-
-        .map-container {
-            position: relative;
-            width: 100%;
-            height: 700px;
-            overflow: hidden;
-            background: #f0f0f0;
-            cursor: grab;
-        }
-
-        .map-container:active {
-            cursor: grabbing;
-        }
-
-        .map-container.adding-point {
-            cursor: crosshair !important;
-        }
-
-        .map-wrapper {
-            position: absolute;
-            transform-origin: 0 0;
-            transition: transform 0.1s ease-out;
-        }
-
-        .map-image {
-            display: block;
-            max-width: 100%;
-            height: auto;
-            user-select: none;
-            -webkit-user-drag: none;
-        }
-
-        .point {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            cursor: pointer;
-            transform: translate(-50%, -100%);
-            transition: all 0.3s;
-            z-index: 10;
-        }
-
-        .point:hover {
-            transform: translate(-50%, -100%) scale(1.2);
-            z-index: 20;
-        }
-
-        .point.dragging {
-            cursor: move;
-            opacity: 0.7;
-            z-index: 30;
-            transition: none;
-        }
-
-        .point-icon {
-            width: 100%;
-            height: 100%;
-            border-radius: 50% 50% 50% 0;
-            transform: rotate(-45deg);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            border: 3px solid white;
-        }
-
-        .point-pulse {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border-radius: 50% 50% 50% 0;
-            transform: rotate(-45deg);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
-            }
-            70% {
-                box-shadow: 0 0 0 20px rgba(255, 255, 255, 0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
-            }
-        }
-
-        /* Info Popup Styles */
-        .popup {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-            z-index: 1001;
-            max-width: 500px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            animation: popupIn 0.3s ease-out;
-        }
-
-        @keyframes popupIn {
-            from {
-                opacity: 0;
-                transform: translate(-50%, -50%) scale(0.9);
-            }
-            to {
-                opacity: 1;
-                transform: translate(-50%, -50%) scale(1);
-            }
-        }
-
-        .popup.active {
-            display: block;
-        }
-
-        .popup-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.6);
-            z-index: 1000;
-        }
-
-        .popup-overlay.active {
-            display: block;
-        }
-
-        .popup-header {
-            background: linear-gradient(135deg, green 0%, blue 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 16px 16px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .popup-header h3 {
-            font-size: 1.5em;
-            margin: 0;
-        }
-
-        .close-popup {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            font-size: 24px;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-        }
-
-        .close-popup:hover {
-            background: rgba(255,255,255,0.3);
-            transform: rotate(90deg);
-        }
-
-        .popup-body {
-            padding: 25px;
-        }
-
-        .popup-image {
-            width: 100%;
-            height: 250px;
-            object-fit: cover;
-            border-radius: 12px;
-            margin-bottom: 20px;
-        }
-
-        .popup-description {
-            color: #666;
-            line-height: 1.6;
-            margin-bottom: 20px;
-            font-size: 15px;
-        }
-
-        .popup-link {
-            display: inline-block;
-            padding: 12px 24px;
-            background: blue;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            transition: all 0.3s;
-            font-weight: 600;
-            margin-right: 10px;
-        }
-
-        .popup-link:hover {
-            background: blue;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
-        }
-
-        .popup-edit-btn {
-            display: inline-block;
-            padding: 12px 24px;
-            background: green;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: 600;
-            font-size: 15px;
-        }
-
-        .popup-edit-btn:hover {
-            background: green;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
-        }
-
-        /* Edit Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-            z-index: 1002;
-            max-width: 600px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .modal.active {
-            display: block;
-            animation: modalIn 0.3s ease-out;
-        }
-
-        @keyframes modalIn {
-            from {
-                opacity: 0;
-                transform: translate(-50%, -50%) scale(0.9);
-            }
-            to {
-                opacity: 1;
-                transform: translate(-50%, -50%) scale(1);
-            }
-        }
-
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.6);
-            z-index: 1001;
-        }
-
-        .modal-overlay.active {
-            display: block;
-        }
-
-        .modal-header {
-            background: linear-gradient(135deg, green 0%, blue 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 16px 16px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-header h3 {
-            font-size: 1.5em;
-            margin: 0;
-        }
-
-        .close-modal {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            font-size: 24px;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-        }
-
-        .close-modal:hover {
-            background: rgba(255,255,255,0.3);
-            transform: rotate(90deg);
-        }
-
-        .modal-body {
-            padding: 25px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .form-group input,
-        .form-group textarea {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-size: 15px;
-            transition: border-color 0.3s;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: black;
-        }
-
-        .form-group textarea {
-            min-height: 100px;
-            resize: vertical;
-        }
-
-        .form-hint {
-            font-size: 12px;
-            color: #999;
-            margin-top: 5px;
-        }
-
-        .color-picker {
-            width: 60px;
-            height: 40px;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-
-        .image-preview {
-            max-width: 100%;
-            max-height: 200px;
-            margin-top: 10px;
-            border-radius: 8px;
-            display: none;
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-            margin-top: 25px;
-        }
-
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 25px;
-            border-radius: 8px;
-            color: white;
-            font-weight: 600;
-            z-index: 2000;
-            animation: slideIn 0.3s ease-out;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-
-        .notification.success {
-            background: #28a745;
-        }
-
-        .notification.error {
-            background: #dc3545;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        .loading {
-            text-align: center;
-            padding: 50px;
-            font-size: 18px;
-            color: #666;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>⚙️ Admin Panel - Heritage Garden</h1>
-            <p>Upload map, add and manage points | Double-click points to view details</p>
-        </div>
-
-        <div class="controls">
-            <button class="btn btn-success" onclick="document.getElementById('mapUpload').click()">
-                <span>📤</span> Upload New Map
-            </button>
-            <input type="file" id="mapUpload" accept="image/*" style="display: none;" onchange="uploadMap()">
+<?php
+// Database configuration - CORRECTED
+define('DB_HOST', 'your_db_host'); // ✅ This is correct for InfinityFree
+define('DB_USER', 'your_db_user');
+define('DB_PASS', 'your_db_pass');
+define('DB_NAME', 'your_db_name');
+
+// Create connection
+$conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+
+// Check connection
+if ($conn->connect_error) {
+    die(json_encode(['success' => false, 'message' => 'Database connection failed: ' . $conn->connect_error]));
+}
+
+// Set charset to UTF-8
+$conn->set_charset("utf8mb4");
+
+// Define upload paths - FIXED FOR INFINITYFREE
+define('UPLOAD_DIR', $_SERVER['DOCUMENT_ROOT'] . '/uploads/');
+define('UPLOAD_URL', 'https://interactive-map.page.gd/uploads/');
+
+// Create uploads directory if it doesn't exist
+if (!file_exists(UPLOAD_DIR)) {
+    mkdir(UPLOAD_DIR, 0755, true);
+}
+
+// Handle AJAX requests
+if (isset($_POST['action']) || isset($_GET['action'])) {
+    header('Content-Type: application/json');
+    $action = $_POST['action'] ?? $_GET['action'] ?? '';
+    
+    switch ($action) {
+        case 'get_map':
+            getMapConfig($conn);
+            break;
+        case 'upload_map':
+            uploadMap($conn);
+            break;
+        case 'get_points':
+            getPoints($conn);
+            break;
+        case 'add_point':
+            addPoint($conn);
+            break;
+        case 'update_point':
+            updatePoint($conn);
+            break;
+        case 'delete_point':
+            deletePoint($conn);
+            break;
+        default:
+            echo json_encode(['success' => false, 'message' => 'Invalid action']);
+    }
+    exit;
+}
+
+// API Functions
+function getMapConfig($conn) {
+    $result = $conn->query("SELECT * FROM map_config ORDER BY id DESC LIMIT 1");
+    if ($result && $row = $result->fetch_assoc()) {
+        echo json_encode(['success' => true, 'data' => $row]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'No map found']);
+    }
+}
+
+function uploadMap($conn) {
+    if (!isset($_FILES['map_image'])) {
+        echo json_encode(['success' => false, 'message' => 'No file uploaded']);
+        return;
+    }
+    
+    if ($_FILES['map_image']['error'] !== UPLOAD_ERR_OK) {
+        echo json_encode(['success' => false, 'message' => 'Upload error code: ' . $_FILES['map_image']['error']]);
+        return;
+    }
+    
+    $allowed = ['jpg', 'jpeg', 'png', 'gif'];
+    $filename = $_FILES['map_image']['name'];
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    
+    if (!in_array($ext, $allowed)) {
+        echo json_encode(['success' => false, 'message' => 'Invalid file type. Only JPG, PNG, GIF allowed']);
+        return;
+    }
+    
+    $new_filename = 'map_' . time() . '.' . $ext;
+    $upload_path = UPLOAD_DIR . $new_filename; // Server file path
+    $db_url = UPLOAD_URL . $new_filename; // URL for database and display
+    
+    if (move_uploaded_file($_FILES['map_image']['tmp_name'], $upload_path)) {
+        // Delete old map points when new map is uploaded
+        $conn->query("DELETE FROM map_points");
+        
+        // Update or insert map config - STORE URL
+        $stmt = $conn->prepare("INSERT INTO map_config (map_image) VALUES (?) ON DUPLICATE KEY UPDATE map_image = ?");
+        $stmt->bind_param("ss", $db_url, $db_url);
+        
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Map uploaded successfully', 'path' => $db_url]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Database error: ' . $conn->error]);
+        }
+        $stmt->close();
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Failed to move uploaded file']);
+    }
+}
+
+function getPoints($conn) {
+    $result = $conn->query("SELECT * FROM map_points ORDER BY id ASC");
+    $points = [];
+    
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $points[] = $row;
+        }
+    }
+    
+    echo json_encode(['success' => true, 'data' => $points]);
+}
+
+function addPoint($conn) {
+    $title = $_POST['title'] ?? '';
+    $description = $_POST['description'] ?? '';
+    $link = $_POST['link'] ?? '';
+    $x = $_POST['x_coordinate'] ?? 0;
+    $y = $_POST['y_coordinate'] ?? 0;
+    $color = $_POST['icon_color'] ?? '#FF0000';
+    
+    // Handle image upload
+    $image_url = null;
+    if (isset($_FILES['point_image']) && $_FILES['point_image']['error'] === UPLOAD_ERR_OK) {
+        $allowed = ['jpg', 'jpeg', 'png', 'gif'];
+        $filename = $_FILES['point_image']['name'];
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        
+        if (in_array($ext, $allowed)) {
+            $new_filename = 'point_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
+            $upload_path = UPLOAD_DIR . $new_filename;
             
-            <button class="btn btn-success" onclick="enableAddPoint()">
-                <span>📍</span> Add Point
-            </button>
-            
-            <button class="btn btn-primary" onclick="zoomIn()">
-                <span>🔍+</span> Zoom In
-            </button>
-            <button class="btn btn-primary" onclick="zoomOut()">
-                <span>🔍-</span> Zoom Out
-            </button>
-            <button class="btn btn-primary" onclick="resetView()">
-                <span>🔄</span> Reset View
-            </button>
-            
-            <div class="zoom-info">
-                Zoom: <span id="zoomLevel">100%</span>
-            </div>
-        </div>
-
-        <div class="map-container" id="mapContainer">
-            <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()">⛶</button>
-            <div class="map-wrapper" id="mapWrapper">
-                <img src="" alt="Map" class="map-image" id="mapImage">
-            </div>
-        </div>
-    </div>
-
-    <!-- Info Popup (View Mode) -->
-    <div class="popup-overlay" id="popupOverlay" onclick="closePopup()"></div>
-    <div class="popup" id="popup">
-        <div class="popup-header">
-            <h3 id="popupTitle"></h3>
-            <button class="close-popup" onclick="closePopup()">×</button>
-        </div>
-        <div class="popup-body">
-            <img src="" alt="" class="popup-image" id="popupImage" style="display: none;">
-            <div class="popup-description" id="popupDescription"></div>
-            <a href="#" class="popup-link" id="popupLink" target="_blank" style="display: none;">Visit Link</a>
-            <button class="popup-edit-btn" onclick="editFromPopup()">✏️ Edit Point</button>
-        </div>
-    </div>
-
-    <!-- Edit Modal (Edit Mode) -->
-    <div class="modal-overlay" id="modalOverlay" onclick="closeModal()"></div>
-    <div class="modal" id="pointModal">
-        <div class="modal-header">
-            <h3 id="modalTitle">Add Point</h3>
-            <button class="close-modal" onclick="closeModal()">×</button>
-        </div>
-        <div class="modal-body">
-            <form id="pointForm" onsubmit="savePoint(event)">
-                <input type="hidden" id="pointId" value="">
-                <input type="hidden" id="pointX" value="">
-                <input type="hidden" id="pointY" value="">
-                
-                <div class="form-group">
-                    <label>Title *</label>
-                    <input type="text" id="pointTitle" required>
-                </div>
-                
-                <div class="form-group">
-                    <label>Description</label>
-                    <textarea id="pointDescription"></textarea>
-                    <div class="form-hint">💡 Press Shift+Enter to add a new line</div>
-                </div>
-                
-                <div class="form-group">
-                    <label>Image</label>
-                    <input type="file" id="pointImage" accept="image/*" onchange="previewImage()">
-                    <img id="imagePreview" class="image-preview">
-                </div>
-                
-                <div class="form-group">
-                    <label>Link (URL)</label>
-                    <input type="url" id="pointLink" placeholder="https://example.com">
-                </div>
-                
-                <div class="form-group">
-                    <label>Icon Color</label>
-                    <input type="color" id="pointColor" class="color-picker" value="#FF0000">
-                </div>
-                
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-danger" id="deleteBtn" onclick="deletePoint()" style="display: none;">Delete</button>
-                    <button type="button" class="btn btn-primary" onclick="closeModal()">Cancel</button>
-                    <button type="submit" class="btn btn-success">Save Point</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script>
-        let scale = 1;
-        let translateX = 0;
-        let translateY = 0;
-        let isDragging = false;
-        let startX, startY;
-        let mapData = null;
-        let points = [];
-        let isAddingPoint = false;
-        let draggedPoint = null;
-        let dragStartX, dragStartY;
-        let dragMoved = false;
-        let currentEditingPoint = null;
-        let clickTimer = null;
-        let preventClick = false;
-
-        const mapContainer = document.getElementById('mapContainer');
-        const mapWrapper = document.getElementById('mapWrapper');
-        const mapImage = document.getElementById('mapImage');
-
-        // Load map and points
-        async function loadMap() {
-            try {
-                const response = await fetch('../database.php?action=get_map');
-                const result = await response.json();
-                
-                if (result.success) {
-                    mapData = result.data;
-                    mapImage.src = result.data.map_image;
-                    mapImage.onload = () => {
-                        centerMap();
-                        loadPoints();
-                    };
-                } else {
-                    mapContainer.innerHTML = '<div class="loading">No map available. Please upload a map.</div>';
-                }
-            } catch (error) {
-                console.error('Error loading map:', error);
-                showNotification('Error loading map', 'error');
+            if (move_uploaded_file($_FILES['point_image']['tmp_name'], $upload_path)) {
+                $image_url = UPLOAD_URL . $new_filename; // Store URL
             }
         }
+    }
+    
+    $stmt = $conn->prepare("INSERT INTO map_points (title, description, image, link, x_coordinate, y_coordinate, icon_color) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("ssssdds", $title, $description, $image_url, $link, $x, $y, $color);
+    
+    if ($stmt->execute()) {
+        $new_id = $conn->insert_id;
+        echo json_encode(['success' => true, 'message' => 'Point added successfully', 'id' => $new_id]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Failed to add point: ' . $conn->error]);
+    }
+    $stmt->close();
+}
 
-        async function loadPoints() {
-            try {
-                const response = await fetch('../database.php?action=get_points');
-                const result = await response.json();
-                
-                if (result.success) {
-                    points = result.data;
-                    renderPoints();
-                }
-            } catch (error) {
-                console.error('Error loading points:', error);
-            }
-        }
-
-        function renderPoints() {
-            document.querySelectorAll('.point').forEach(p => p.remove());
+function updatePoint($conn) {
+    $id = $_POST['id'] ?? 0;
+    $title = $_POST['title'] ?? '';
+    $description = $_POST['description'] ?? '';
+    $link = $_POST['link'] ?? '';
+    $x = $_POST['x_coordinate'] ?? 0;
+    $y = $_POST['y_coordinate'] ?? 0;
+    $color = $_POST['icon_color'] ?? '#FF0000';
+    
+    // Get current image
+    $result = $conn->query("SELECT image FROM map_points WHERE id = $id");
+    $current_image = null;
+    if ($result && $row = $result->fetch_assoc()) {
+        $current_image = $row['image'];
+    }
+    
+    // Handle image upload
+    $image_url = $current_image;
+    if (isset($_FILES['point_image']) && $_FILES['point_image']['error'] === UPLOAD_ERR_OK) {
+        $allowed = ['jpg', 'jpeg', 'png', 'gif'];
+        $filename = $_FILES['point_image']['name'];
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        
+        if (in_array($ext, $allowed)) {
+            $new_filename = 'point_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
+            $upload_path = UPLOAD_DIR . $new_filename;
             
-            points.forEach(point => {
-                const pointEl = document.createElement('div');
-                pointEl.className = 'point';
-                pointEl.style.left = point.x_coordinate + '%';
-                pointEl.style.top = point.y_coordinate + '%';
-                pointEl.dataset.id = point.id;
-                
-                pointEl.innerHTML = `
-                    <div class="point-pulse" style="background: ${point.icon_color};"></div>
-                    <div class="point-icon" style="background: ${point.icon_color};"></div>
-                `;
-                
-                // Mousedown to start drag
-                pointEl.addEventListener('mousedown', (e) => {
-                    if (!isAddingPoint) {
-                        e.stopPropagation();
-                        draggedPoint = pointEl;
-                        dragStartX = e.clientX;
-                        dragStartY = e.clientY;
-                        dragMoved = false;
-                    }
-                });
-                
-                // Double-click to view popup
-                pointEl.addEventListener('dblclick', (e) => {
-                    if (!isAddingPoint) {
-                        e.stopPropagation();
-                        preventClick = true;
-                        showPopup(point);
-                    }
-                });
-                
-                mapWrapper.appendChild(pointEl);
-            });
-        }
-
-        async function uploadMap() {
-            const file = document.getElementById('mapUpload').files[0];
-            if (!file) return;
-            
-            const formData = new FormData();
-            formData.append('action', 'upload_map');
-            formData.append('map_image', file);
-            
-            try {
-                const response = await fetch('../database.php', {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-                
-                if (result.success) {
-                    showNotification('Map uploaded successfully!', 'success');
-                    loadMap();
-                } else {
-                    showNotification(result.message, 'error');
-                }
-            } catch (error) {
-                showNotification('Error uploading map', 'error');
-            }
-        }
-
-        function enableAddPoint() {
-            isAddingPoint = true;
-            mapContainer.classList.add('adding-point');
-            showNotification('Click on the map to add a point', 'success');
-        }
-
-        mapContainer.addEventListener('click', (e) => {
-            if (isAddingPoint && e.target.closest('#mapImage')) {
-                const rect = mapImage.getBoundingClientRect();
-                const x = ((e.clientX - rect.left) / rect.width) * 100;
-                const y = ((e.clientY - rect.top) / rect.height) * 100;
-                
-                openPointForm(x, y);
-                isAddingPoint = false;
-                mapContainer.classList.remove('adding-point');
-            }
-        });
-
-        function openPointForm(x, y, point = null) {
-            closePopup(); // Close info popup if open
-            document.getElementById('pointId').value = point ? point.id : '';
-            document.getElementById('pointX').value = x;
-            document.getElementById('pointY').value = y;
-            document.getElementById('pointTitle').value = point ? point.title : '';
-            document.getElementById('pointDescription').value = point ? point.description : '';
-            document.getElementById('pointLink').value = point ? point.link : '';
-            document.getElementById('pointColor').value = point ? point.icon_color : '#FF0000';
-            
-            document.getElementById('imagePreview').style.display = 'none';
-            document.getElementById('imagePreview').src = '';
-            
-            if (point && point.image) {
-                document.getElementById('imagePreview').src = point.image;
-                document.getElementById('imagePreview').style.display = 'block';
-            }
-            
-            document.getElementById('modalTitle').textContent = point ? 'Edit Point' : 'Add Point';
-            document.getElementById('deleteBtn').style.display = point ? 'block' : 'none';
-            
-            document.getElementById('pointModal').classList.add('active');
-            document.getElementById('modalOverlay').classList.add('active');
-        }
-
-        function showPopup(point) {
-            currentEditingPoint = point;
-            document.getElementById('popupTitle').textContent = point.title;
-            
-            // FIXED: Convert line breaks to <br> tags for proper display
-            const description = point.description || 'No description available';
-            document.getElementById('popupDescription').innerHTML = description.replace(/\n/g, '<br>');
-            
-            const popupImage = document.getElementById('popupImage');
-            if (point.image) {
-                popupImage.src = point.image;
-                popupImage.style.display = 'block';
-            } else {
-                popupImage.style.display = 'none';
-            }
-            
-            const popupLink = document.getElementById('popupLink');
-            if (point.link) {
-                popupLink.href = point.link;
-                popupLink.style.display = 'inline-block';
-            } else {
-                popupLink.style.display = 'none';
-            }
-            
-            document.getElementById('popup').classList.add('active');
-            document.getElementById('popupOverlay').classList.add('active');
-        }
-
-        function closePopup() {
-            document.getElementById('popup').classList.remove('active');
-            document.getElementById('popupOverlay').classList.remove('active');
-            currentEditingPoint = null;
-        }
-
-        function editFromPopup() {
-            if (currentEditingPoint) {
-                const point = currentEditingPoint;
-                closePopup();
-                openPointForm(point.x_coordinate, point.y_coordinate, point);
-            }
-        }
-
-        function closeModal() {
-            document.getElementById('pointModal').classList.remove('active');
-            document.getElementById('modalOverlay').classList.remove('active');
-            document.getElementById('pointForm').reset();
-        }
-
-        async function savePoint(e) {
-            e.preventDefault();
-            
-            const formData = new FormData();
-            const pointId = document.getElementById('pointId').value;
-            
-            formData.append('action', pointId ? 'update_point' : 'add_point');
-            if (pointId) formData.append('id', pointId);
-            formData.append('title', document.getElementById('pointTitle').value);
-            formData.append('description', document.getElementById('pointDescription').value);
-            formData.append('link', document.getElementById('pointLink').value);
-            formData.append('x_coordinate', document.getElementById('pointX').value);
-            formData.append('y_coordinate', document.getElementById('pointY').value);
-            formData.append('icon_color', document.getElementById('pointColor').value);
-            
-            const imageFile = document.getElementById('pointImage').files[0];
-            if (imageFile) {
-                formData.append('point_image', imageFile);
-            }
-            
-            try {
-                const response = await fetch('../database.php', {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-                
-                if (result.success) {
-                    showNotification(result.message, 'success');
-                    closeModal();
-                    loadPoints();
-                } else {
-                    showNotification(result.message, 'error');
-                }
-            } catch (error) {
-                showNotification('Error saving point', 'error');
-            }
-        }
-
-        async function deletePoint() {
-            if (!confirm('Are you sure you want to delete this point?')) return;
-            
-            const pointId = document.getElementById('pointId').value;
-            const formData = new FormData();
-            formData.append('action', 'delete_point');
-            formData.append('id', pointId);
-            
-            try {
-                const response = await fetch('../database.php', {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-                
-                if (result.success) {
-                    showNotification(result.message, 'success');
-                    closeModal();
-                    loadPoints();
-                } else {
-                    showNotification(result.message, 'error');
-                }
-            } catch (error) {
-                showNotification('Error deleting point', 'error');
-            }
-        }
-
-        function previewImage() {
-            const file = document.getElementById('pointImage').files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    document.getElementById('imagePreview').src = e.target.result;
-                    document.getElementById('imagePreview').style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-
-        // Allow Shift+Enter for new lines in description textarea
-        document.addEventListener('DOMContentLoaded', function() {
-            const descriptionTextarea = document.getElementById('pointDescription');
-            
-            descriptionTextarea.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter' && e.shiftKey) {
-                    e.preventDefault();
-                    const start = this.selectionStart;
-                    const end = this.selectionEnd;
-                    const value = this.value;
-                    
-                    this.value = value.substring(0, start) + '\n' + value.substring(end);
-                    this.selectionStart = this.selectionEnd = start + 1;
-                }
-            });
-        });
-
-        // Point dragging
-        document.addEventListener('mousemove', async (e) => {
-            if (draggedPoint) {
-                const moveThreshold = 5; // pixels
-                const deltaX = Math.abs(e.clientX - dragStartX);
-                const deltaY = Math.abs(e.clientY - dragStartY);
-                
-                if (deltaX > moveThreshold || deltaY > moveThreshold) {
-                    dragMoved = true;
-                    draggedPoint.classList.add('dragging');
-                }
-                
-                if (dragMoved) {
-                    const rect = mapImage.getBoundingClientRect();
-                    const x = ((e.clientX - rect.left) / rect.width) * 100;
-                    const y = ((e.clientY - rect.top) / rect.height) * 100;
-                    
-                    draggedPoint.style.left = x + '%';
-                    draggedPoint.style.top = y + '%';
-                }
-                return;
-            }
-            
-            if (isDragging && !isAddingPoint) {
-                translateX = e.clientX - startX;
-                translateY = e.clientY - startY;
-                updateTransform();
-            }
-        });
-
-        document.addEventListener('mouseup', async (e) => {
-            if (draggedPoint) {
-                if (dragMoved) {
-                    const pointId = draggedPoint.dataset.id;
-                    const point = points.find(p => p.id == pointId);
-                    
-                    const rect = mapImage.getBoundingClientRect();
-                    const x = ((e.clientX - rect.left) / rect.width) * 100;
-                    const y = ((e.clientY - rect.top) / rect.height) * 100;
-                    
-                    // Update point position
-                    const formData = new FormData();
-                    formData.append('action', 'update_point');
-                    formData.append('id', pointId);
-                    formData.append('title', point.title);
-                    formData.append('description', point.description);
-                    formData.append('link', point.link);
-                    formData.append('x_coordinate', x);
-                    formData.append('y_coordinate', y);
-                    formData.append('icon_color', point.icon_color);
-                    
-                    try {
-                        await fetch('../database.php', { method: 'POST', body: formData });
-                        showNotification('Point position updated', 'success');
-                        loadPoints();
-                    } catch (error) {
-                        console.error('Error updating point position:', error);
+            if (move_uploaded_file($_FILES['point_image']['tmp_name'], $upload_path)) {
+                // Delete old image file
+                if ($current_image) {
+                    $old_filename = basename($current_image);
+                    $old_path = UPLOAD_DIR . $old_filename;
+                    if (file_exists($old_path)) {
+                        unlink($old_path);
                     }
                 }
-                
-                draggedPoint.classList.remove('dragging');
-                draggedPoint = null;
-            }
-            isDragging = false;
-        });
-
-        // Map dragging
-        mapContainer.addEventListener('mousedown', (e) => {
-            if (!isAddingPoint && !e.target.closest('.point')) {
-                isDragging = true;
-                startX = e.clientX - translateX;
-                startY = e.clientY - translateY;
-            }
-        });
-
-        function updateTransform() {
-            mapWrapper.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
-            document.getElementById('zoomLevel').textContent = Math.round(scale * 100) + '%';
-        }
-
-        function zoomIn() {
-            scale = Math.min(scale * 1.2, 5);
-            updateTransform();
-        }
-
-        function zoomOut() {
-            scale = Math.max(scale / 1.2, 0.5);
-            updateTransform();
-        }
-
-        function resetView() {
-            scale = 1;
-            centerMap();
-            updateTransform();
-        }
-
-        function centerMap() {
-            const containerRect = mapContainer.getBoundingClientRect();
-            const imageRect = mapImage.getBoundingClientRect();
-            
-            translateX = (containerRect.width - imageRect.width) / 2;
-            translateY = (containerRect.height - imageRect.height) / 2;
-        }
-
-        function toggleFullscreen() {
-            const fullscreenBtn = document.getElementById('fullscreenBtn');
-            
-            if (!mapContainer.classList.contains('fullscreen')) {
-                mapContainer.classList.add('fullscreen');
-                fullscreenBtn.textContent = '✕';
-            } else {
-                mapContainer.classList.remove('fullscreen');
-                fullscreenBtn.textContent = '⛶';
+                $image_url = UPLOAD_URL . $new_filename;
             }
         }
+    }
+    
+    $stmt = $conn->prepare("UPDATE map_points SET title = ?, description = ?, image = ?, link = ?, x_coordinate = ?, y_coordinate = ?, icon_color = ? WHERE id = ?");
+    $stmt->bind_param("ssssddsi", $title, $description, $image_url, $link, $x, $y, $color, $id);
+    
+    if ($stmt->execute()) {
+        echo json_encode(['success' => true, 'message' => 'Point updated successfully']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Failed to update point: ' . $conn->error]);
+    }
+    $stmt->close();
+}
 
-        mapContainer.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            
-            const rect = mapContainer.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-            
-            const oldScale = scale;
-            const delta = e.deltaY > 0 ? 0.9 : 1.1;
-            scale = Math.max(0.5, Math.min(5, scale * delta));
-            
-            // Adjust translation to zoom towards mouse pointer
-            translateX = mouseX - (mouseX - translateX) * (scale / oldScale);
-            translateY = mouseY - (mouseY - translateY) * (scale / oldScale);
-            
-            updateTransform();
-        });
-
-        function showNotification(message, type) {
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.textContent = message;
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
+function deletePoint($conn) {
+    $id = $_POST['id'] ?? 0;
+    
+    // Get image URL before deleting
+    $result = $conn->query("SELECT image FROM map_points WHERE id = $id");
+    if ($result && $row = $result->fetch_assoc()) {
+        $image_url = $row['image'];
+        if ($image_url) {
+            $filename = basename($image_url);
+            $file_path = UPLOAD_DIR . $filename;
+            if (file_exists($file_path)) {
+                unlink($file_path);
+            }
         }
-
-        // Initialize
-        loadMap();
-    </script>
-</body>
-</html>
+    }
+    
+    $stmt = $conn->prepare("DELETE FROM map_points WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    
+    if ($stmt->execute()) {
+        echo json_encode(['success' => true, 'message' => 'Point deleted successfully']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Failed to delete point: ' . $conn->error]);
+    }
+    $stmt->close();
+}
+?>
