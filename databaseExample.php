@@ -1,9 +1,9 @@
 <?php
-// Database configuration
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_NAME', 'interactive_map');
+// Database configuration - CORRECTED
+define('DB_HOST', 'host'); // ✅ This is correct for InfinityFree
+define('DB_USER', 'user');
+define('DB_PASS', 'pass');
+define('DB_NAME', 'name');
 
 // Create connection
 $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
@@ -16,10 +16,13 @@ if ($conn->connect_error) {
 // Set charset to UTF-8
 $conn->set_charset("utf8mb4");
 
+// Define upload paths - FIXED FOR INFINITYFREE
+define('UPLOAD_DIR', $_SERVER['DOCUMENT_ROOT'] . '/uploads/');
+define('UPLOAD_URL', 'https://interactive-map.page.gd/uploads/');
+
 // Create uploads directory if it doesn't exist
-$upload_dir = 'uploads';
-if (!file_exists($upload_dir)) {
-    mkdir($upload_dir, 0777, true);
+if (!file_exists(UPLOAD_DIR)) {
+    mkdir(UPLOAD_DIR, 0755, true);
 }
 
 // Handle AJAX requests
@@ -63,8 +66,13 @@ function getMapConfig($conn) {
 }
 
 function uploadMap($conn) {
-    if (!isset($_FILES['map_image']) || $_FILES['map_image']['error'] !== UPLOAD_ERR_OK) {
-        echo json_encode(['success' => false, 'message' => 'No file uploaded or upload error']);
+    if (!isset($_FILES['map_image'])) {
+        echo json_encode(['success' => false, 'message' => 'No file uploaded']);
+        return;
+    }
+    
+    if ($_FILES['map_image']['error'] !== UPLOAD_ERR_OK) {
+        echo json_encode(['success' => false, 'message' => 'Upload error code: ' . $_FILES['map_image']['error']]);
         return;
     }
     
@@ -78,23 +86,25 @@ function uploadMap($conn) {
     }
     
     $new_filename = 'map_' . time() . '.' . $ext;
-    $upload_path = 'uploads/' . $new_filename;
+    $upload_path = UPLOAD_DIR . $new_filename; // Server file path
+    $db_url = UPLOAD_URL . $new_filename; // URL for database and display
     
     if (move_uploaded_file($_FILES['map_image']['tmp_name'], $upload_path)) {
         // Delete old map points when new map is uploaded
         $conn->query("DELETE FROM map_points");
         
-        // Update or insert map config
+        // Update or insert map config - STORE URL
         $stmt = $conn->prepare("INSERT INTO map_config (map_image) VALUES (?) ON DUPLICATE KEY UPDATE map_image = ?");
-        $stmt->bind_param("ss", $upload_path, $upload_path);
+        $stmt->bind_param("ss", $db_url, $db_url);
         
         if ($stmt->execute()) {
-            echo json_encode(['success' => true, 'message' => 'Map uploaded successfully', 'path' => $upload_path]);
+            echo json_encode(['success' => true, 'message' => 'Map uploaded successfully', 'path' => $db_url]);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Database error']);
+            echo json_encode(['success' => false, 'message' => 'Database error: ' . $conn->error]);
         }
+        $stmt->close();
     } else {
-        echo json_encode(['success' => false, 'message' => 'Failed to save file']);
+        echo json_encode(['success' => false, 'message' => 'Failed to move uploaded file']);
     }
 }
 
@@ -120,7 +130,7 @@ function addPoint($conn) {
     $color = $_POST['icon_color'] ?? '#FF0000';
     
     // Handle image upload
-    $image_path = null;
+    $image_url = null;
     if (isset($_FILES['point_image']) && $_FILES['point_image']['error'] === UPLOAD_ERR_OK) {
         $allowed = ['jpg', 'jpeg', 'png', 'gif'];
         $filename = $_FILES['point_image']['name'];
@@ -128,23 +138,24 @@ function addPoint($conn) {
         
         if (in_array($ext, $allowed)) {
             $new_filename = 'point_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
-            $upload_path = 'uploads/' . $new_filename;
+            $upload_path = UPLOAD_DIR . $new_filename;
             
             if (move_uploaded_file($_FILES['point_image']['tmp_name'], $upload_path)) {
-                $image_path = $upload_path;
+                $image_url = UPLOAD_URL . $new_filename; // Store URL
             }
         }
     }
     
     $stmt = $conn->prepare("INSERT INTO map_points (title, description, image, link, x_coordinate, y_coordinate, icon_color) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("ssssdds", $title, $description, $image_path, $link, $x, $y, $color);
+    $stmt->bind_param("ssssdds", $title, $description, $image_url, $link, $x, $y, $color);
     
     if ($stmt->execute()) {
         $new_id = $conn->insert_id;
         echo json_encode(['success' => true, 'message' => 'Point added successfully', 'id' => $new_id]);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Failed to add point']);
+        echo json_encode(['success' => false, 'message' => 'Failed to add point: ' . $conn->error]);
     }
+    $stmt->close();
 }
 
 function updatePoint($conn) {
@@ -164,7 +175,7 @@ function updatePoint($conn) {
     }
     
     // Handle image upload
-    $image_path = $current_image;
+    $image_url = $current_image;
     if (isset($_FILES['point_image']) && $_FILES['point_image']['error'] === UPLOAD_ERR_OK) {
         $allowed = ['jpg', 'jpeg', 'png', 'gif'];
         $filename = $_FILES['point_image']['name'];
@@ -172,37 +183,46 @@ function updatePoint($conn) {
         
         if (in_array($ext, $allowed)) {
             $new_filename = 'point_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
-            $upload_path = 'uploads/' . $new_filename;
+            $upload_path = UPLOAD_DIR . $new_filename;
             
             if (move_uploaded_file($_FILES['point_image']['tmp_name'], $upload_path)) {
-                // Delete old image
-                if ($current_image && file_exists($current_image)) {
-                    unlink($current_image);
+                // Delete old image file
+                if ($current_image) {
+                    $old_filename = basename($current_image);
+                    $old_path = UPLOAD_DIR . $old_filename;
+                    if (file_exists($old_path)) {
+                        unlink($old_path);
+                    }
                 }
-                $image_path = $upload_path;
+                $image_url = UPLOAD_URL . $new_filename;
             }
         }
     }
     
     $stmt = $conn->prepare("UPDATE map_points SET title = ?, description = ?, image = ?, link = ?, x_coordinate = ?, y_coordinate = ?, icon_color = ? WHERE id = ?");
-    $stmt->bind_param("ssssddsi", $title, $description, $image_path, $link, $x, $y, $color, $id);
+    $stmt->bind_param("ssssddsi", $title, $description, $image_url, $link, $x, $y, $color, $id);
     
     if ($stmt->execute()) {
         echo json_encode(['success' => true, 'message' => 'Point updated successfully']);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Failed to update point']);
+        echo json_encode(['success' => false, 'message' => 'Failed to update point: ' . $conn->error]);
     }
+    $stmt->close();
 }
 
 function deletePoint($conn) {
     $id = $_POST['id'] ?? 0;
     
-    // Get image path before deleting
+    // Get image URL before deleting
     $result = $conn->query("SELECT image FROM map_points WHERE id = $id");
     if ($result && $row = $result->fetch_assoc()) {
-        $image = $row['image'];
-        if ($image && file_exists($image)) {
-            unlink($image);
+        $image_url = $row['image'];
+        if ($image_url) {
+            $filename = basename($image_url);
+            $file_path = UPLOAD_DIR . $filename;
+            if (file_exists($file_path)) {
+                unlink($file_path);
+            }
         }
     }
     
@@ -212,7 +232,8 @@ function deletePoint($conn) {
     if ($stmt->execute()) {
         echo json_encode(['success' => true, 'message' => 'Point deleted successfully']);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Failed to delete point']);
+        echo json_encode(['success' => false, 'message' => 'Failed to delete point: ' . $conn->error]);
     }
+    $stmt->close();
 }
 ?>
