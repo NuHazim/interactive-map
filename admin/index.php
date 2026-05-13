@@ -1,10 +1,10 @@
-<?php include 'database.php'; ?>
+<?php include '../database.php'; ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Map - test Admin Panel</title>
+    <title>Heritage Garden Map</title>
     <style>
         * {
             margin: 0;
@@ -14,7 +14,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, green 0%, blue 100%);
+            background:linear-gradient(135deg, green 0%, blue 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -473,6 +473,12 @@
             resize: vertical;
         }
 
+        .form-hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+
         .color-picker {
             width: 60px;
             height: 40px;
@@ -539,7 +545,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>⚙️ Admin Panel - Interactive Map</h1>
+            <h1>⚙️ Admin Panel - Heritage Garden</h1>
             <p>Upload map, add and manage points | Double-click points to view details</p>
         </div>
 
@@ -612,6 +618,7 @@
                 <div class="form-group">
                     <label>Description</label>
                     <textarea id="pointDescription"></textarea>
+                    <div class="form-hint">💡 Press Shift+Enter to add a new line</div>
                 </div>
                 
                 <div class="form-group">
@@ -662,7 +669,7 @@
         // Load map and points
         async function loadMap() {
             try {
-                const response = await fetch('database.php?action=get_map');
+                const response = await fetch('../database.php?action=get_map');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -683,7 +690,7 @@
 
         async function loadPoints() {
             try {
-                const response = await fetch('database.php?action=get_points');
+                const response = await fetch('../database.php?action=get_points');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -743,7 +750,7 @@
             formData.append('map_image', file);
             
             try {
-                const response = await fetch('database.php', {
+                const response = await fetch('../database.php', {
                     method: 'POST',
                     body: formData
                 });
@@ -806,7 +813,10 @@
         function showPopup(point) {
             currentEditingPoint = point;
             document.getElementById('popupTitle').textContent = point.title;
-            document.getElementById('popupDescription').textContent = point.description || 'No description available';
+            
+            // FIXED: Convert line breaks to <br> tags for proper display
+            const description = point.description || 'No description available';
+            document.getElementById('popupDescription').innerHTML = description.replace(/\n/g, '<br>');
             
             const popupImage = document.getElementById('popupImage');
             if (point.image) {
@@ -869,7 +879,7 @@
             }
             
             try {
-                const response = await fetch('database.php', {
+                const response = await fetch('../database.php', {
                     method: 'POST',
                     body: formData
                 });
@@ -896,7 +906,7 @@
             formData.append('id', pointId);
             
             try {
-                const response = await fetch('database.php', {
+                const response = await fetch('../database.php', {
                     method: 'POST',
                     body: formData
                 });
@@ -925,6 +935,23 @@
                 reader.readAsDataURL(file);
             }
         }
+
+        // Allow Shift+Enter for new lines in description textarea
+        document.addEventListener('DOMContentLoaded', function() {
+            const descriptionTextarea = document.getElementById('pointDescription');
+            
+            descriptionTextarea.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && e.shiftKey) {
+                    e.preventDefault();
+                    const start = this.selectionStart;
+                    const end = this.selectionEnd;
+                    const value = this.value;
+                    
+                    this.value = value.substring(0, start) + '\n' + value.substring(end);
+                    this.selectionStart = this.selectionEnd = start + 1;
+                }
+            });
+        });
 
         // Point dragging
         document.addEventListener('mousemove', async (e) => {
@@ -978,7 +1005,7 @@
                     formData.append('icon_color', point.icon_color);
                     
                     try {
-                        await fetch('database.php', { method: 'POST', body: formData });
+                        await fetch('../database.php', { method: 'POST', body: formData });
                         showNotification('Point position updated', 'success');
                         loadPoints();
                     } catch (error) {
